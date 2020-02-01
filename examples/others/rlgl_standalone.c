@@ -5,29 +5,53 @@
 *   NOTE: This example requires OpenGL 3.3 or ES2 versions for shaders support,
 *         OpenGL 1.1 does not support shaders but it can also be used.
 *
-*   Compile rlgl module using:
-*   gcc -c rlgl.c -Wall -std=c99 -DRLGL_STANDALONE -DRAYMATH_IMPLEMENTATION -DGRAPHICS_API_OPENGL_33
+*   DEPENDENCIES:
+*       rlgl.h    - OpenGL 1.1 immediate-mode style coding translation layer
+*       glad.h    - OpenGL extensions initialization library (required by rlgl)
+*       raymath.h - 3D math library (required by rlgl)
+*       glfw3     - Windows and context initialization library 
 *
-*   NOTE: rlgl module requires the following header-only files:
-*       external/glad.h - OpenGL extensions loader (stripped to only required extensions)
-*       shader_standard.h - Standard shader for materials and lighting
-*       shader_distortion.h - Distortion shader for VR
-*       raymath.h - Vector and matrix math functions
+*   rlgl library is provided as a single-file header-only library, this library
+*   allows coding in a pseudo-OpenGL 1.1 style while translating calls to multiple
+*   OpenGL versions backends (1.1, 2.1, 3.3, ES 2.0).
 *
-*   Compile example using:
-*   gcc -o rlgl_standalone.exe rlgl_standalone.c rlgl.o -lglfw3 -lopengl32 -lgdi32 -std=c99
+*   COMPILATION:
+*       gcc -o rlgl_standalone.exe rlgl_standalone.c -s -Iexternal\include -I..\..\src  \
+*           -L. -Lexternal\lib -lglfw3 -lopengl32 -lgdi32 -Wall -std=c99 -DGRAPHICS_API_OPENGL_33
 *
-*   This example has been created using raylib 1.5 (www.raylib.com)
-*   raylib is licensed under an unmodified zlib/libpng license (View raylib.h for details)
+*   LICENSE: zlib/libpng
 *
-*   Copyright (c) 2015 Ramon Santamaria (@raysan5)
+*   This example is licensed under an unmodified zlib/libpng license, which is an OSI-certified,
+*   BSD-like license that allows static linking with closed source software:
+*
+*   Copyright (c) 2014-2019 Ramon Santamaria (@raysan5)
+*
+*   This software is provided "as-is", without any express or implied warranty. In no event
+*   will the authors be held liable for any damages arising from the use of this software.
+*
+*   Permission is granted to anyone to use this software for any purpose, including commercial
+*   applications, and to alter it and redistribute it freely, subject to the following restrictions:
+*
+*     1. The origin of this software must not be misrepresented; you must not claim that you
+*     wrote the original software. If you use this software in a product, an acknowledgment
+*     in the product documentation would be appreciated but is not required.
+*
+*     2. Altered source versions must be plainly marked as such, and must not be misrepresented
+*     as being the original software.
+*
+*     3. This notice may not be removed or altered from any source distribution.
 *
 ********************************************************************************************/
 
-#include <GLFW/glfw3.h>         // Windows/Context and inputs management
-
+#define RLGL_IMPLEMENTATION
 #define RLGL_STANDALONE
-#include "rlgl.h"               // rlgl library: OpenGL 1.1 immediate-mode style coding
+#include "rlgl.h"               // OpenGL 1.1 immediate-mode style coding
+
+#ifdef __EMSCRIPTEN__
+#define GLFW_INCLUDE_ES2
+#endif
+
+#include <GLFW/glfw3.h>         // Windows/Context and inputs management
 
 #define RED        (Color){ 230, 41, 55, 255 }     // Red
 #define RAYWHITE   (Color){ 245, 245, 245, 255 }   // My own White (raylib logo)
@@ -61,17 +85,17 @@ int main(void)
     
     if (!glfwInit())
     {
-        TraceLog(WARNING, "GLFW3: Can not initialize GLFW");
+        TraceLog(LOG_WARNING, "GLFW3: Can not initialize GLFW");
         return 1;
     }
-    else TraceLog(INFO, "GLFW3: GLFW initialized successfully");
+    else TraceLog(LOG_INFO, "GLFW3: GLFW initialized successfully");
     
     glfwWindowHint(GLFW_SAMPLES, 4);
     glfwWindowHint(GLFW_DEPTH_BITS, 16);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-    glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GL_TRUE);
+    //glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GL_TRUE);
    
     GLFWwindow *window = glfwCreateWindow(screenWidth, screenHeight, "rlgl standalone", NULL, NULL);
     
@@ -80,17 +104,17 @@ int main(void)
         glfwTerminate();
         return 2;
     }
-    else TraceLog(INFO, "GLFW3: Window created successfully");
+    else TraceLog(LOG_INFO, "GLFW3: Window created successfully");
     
     glfwSetWindowPos(window, 200, 200);
     
     glfwSetKeyCallback(window, KeyCallback);
     
     glfwMakeContextCurrent(window);
-    glfwSwapInterval(1);
+    glfwSwapInterval(0);
     
     // Load OpenGL 3.3 supported extensions
-    rlglLoadExtensions(glfwGetProcAddress);
+    rlLoadExtensions(glfwGetProcAddress);
     //--------------------------------------------------------
     
     // Initialize OpenGL context (states and resources)
@@ -107,7 +131,7 @@ int main(void)
     rlClearColor(245, 245, 245, 255);                   // Define clear color
     rlEnableDepthTest();                                // Enable DEPTH_TEST for 3D
     
-    Camera camera;
+    Camera camera = { 0 };
     camera.position = (Vector3){ 5.0f, 5.0f, 5.0f };    // Camera position
     camera.target = (Vector3){ 0.0f, 0.0f, 0.0f };      // Camera looking at point
     camera.up = (Vector3){ 0.0f, 1.0f, 0.0f };          // Camera up vector (rotation towards target)
@@ -121,20 +145,21 @@ int main(void)
     {
         // Update
         //----------------------------------------------------------------------------------
-        // ...
+        //camera.position.x += 0.01f;
         //----------------------------------------------------------------------------------
 
         // Draw
         //----------------------------------------------------------------------------------
         rlClearScreenBuffers();             // Clear current framebuffer
-        
+
+            // Draw '3D' elements in the scene
+            //-----------------------------------------------
             // Calculate projection matrix (from perspective) and view matrix from camera look at
-            Matrix matProj = MatrixPerspective(camera.fovy, (double)screenWidth/(double)screenHeight, 0.01, 1000.0);
-            MatrixTranspose(&matProj);
+            Matrix matProj = MatrixPerspective(camera.fovy*DEG2RAD, (double)screenWidth/(double)screenHeight, 0.01, 1000.0);
             Matrix matView = MatrixLookAt(camera.position, camera.target, camera.up);
 
-            SetMatrixModelview(matView);    // Replace internal modelview matrix by a custom one
-            SetMatrixProjection(matProj);   // Replace internal projection matrix by a custom one
+            SetMatrixModelview(matView);    // Set internal modelview matrix (default shader)
+            SetMatrixProjection(matProj);   // Set internal projection matrix (default shader)
 
             DrawCube(cubePosition, 2.0f, 2.0f, 2.0f, RED);
             DrawCubeWires(cubePosition, 2.0f, 2.0f, 2.0f, RAYWHITE);
@@ -142,16 +167,17 @@ int main(void)
 
             // NOTE: Internal buffers drawing (3D data)
             rlglDraw();
+            //-----------------------------------------------
             
             // Draw '2D' elements in the scene (GUI)
+            //-----------------------------------------------
 #define RLGL_CREATE_MATRIX_MANUALLY
 #if defined(RLGL_CREATE_MATRIX_MANUALLY)
             matProj = MatrixOrtho(0.0, screenWidth, screenHeight, 0.0, 0.0, 1.0);
-            MatrixTranspose(&matProj);
             matView = MatrixIdentity();
             
-            SetMatrixModelview(matView);    // Replace internal modelview matrix by a custom one
-            SetMatrixProjection(matProj);   // Replace internal projection matrix by a custom one
+            SetMatrixModelview(matView);    // Set internal modelview matrix (default shader)
+            SetMatrixProjection(matProj);   // Set internal projection matrix (default shader)
 
 #else   // Let rlgl generate and multiply matrix internally
 
@@ -165,6 +191,7 @@ int main(void)
 
             // NOTE: Internal buffers drawing (2D data)
             rlglDraw();
+            //-----------------------------------------------
             
         glfwSwapBuffers(window);
         glfwPollEvents();
@@ -189,7 +216,7 @@ int main(void)
 // GLFW3: Error callback
 static void ErrorCallback(int error, const char* description)
 {
-    TraceLog(ERROR, description);
+    TraceLog(LOG_ERROR, description);
 }
 
 // GLFW3: Keyboard callback
@@ -251,7 +278,7 @@ static void DrawGrid(int slices, float spacing)
 
 // Draw cube
 // NOTE: Cube position is the center position
-void DrawCube(Vector3 position, float width, float height, float length, Color color)
+static void DrawCube(Vector3 position, float width, float height, float length, Color color)
 {
     float x = 0.0f;
     float y = 0.0f;
@@ -325,7 +352,7 @@ void DrawCube(Vector3 position, float width, float height, float length, Color c
 }
 
 // Draw cube wires
-void DrawCubeWires(Vector3 position, float width, float height, float length, Color color)
+static void DrawCubeWires(Vector3 position, float width, float height, float length, Color color)
 {
     float x = 0.0f;
     float y = 0.0f;

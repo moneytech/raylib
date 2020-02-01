@@ -33,7 +33,6 @@
 //----------------------------------------------------------------------------------
 // Types and Structures Definition
 //----------------------------------------------------------------------------------
-
 typedef struct Player {
     Vector2 position;
     Vector2 speed;
@@ -54,19 +53,19 @@ typedef struct Meteor {
 //------------------------------------------------------------------------------------
 // Global Variables Declaration
 //------------------------------------------------------------------------------------
-static int screenWidth = 800;
-static int screenHeight = 450;
+static const int screenWidth = 800;
+static const int screenHeight = 450;
 
-static int framesCounter;
-static bool gameOver;
-static bool pause;
+static int framesCounter = 0;
+static bool gameOver = false;
+static bool pause = false;
 
 // NOTE: Defined triangle is isosceles with common angles of 70 degrees.
-static float shipHeight;
+static float shipHeight = 0.0f;
 
-static Player player;
-static Meteor mediumMeteor[MAX_MEDIUM_METEORS];
-static Meteor smallMeteor[MAX_SMALL_METEORS];
+static Player player = { 0 };
+static Meteor mediumMeteor[MAX_MEDIUM_METEORS] = { 0 };
+static Meteor smallMeteor[MAX_SMALL_METEORS] = { 0 };
 
 //------------------------------------------------------------------------------------
 // Module Functions Declaration (local)
@@ -80,10 +79,10 @@ static void UpdateDrawFrame(void);  // Update and Draw (one frame)
 //------------------------------------------------------------------------------------
 // Program main entry point
 //------------------------------------------------------------------------------------
-int main()
+int main(void)
 {
-    // Initialization
-    //--------------------------------------------------------------------------------------
+    // Initialization (Note windowTitle is unused on Android)
+    //---------------------------------------------------------
     InitWindow(screenWidth, screenHeight, "sample game: asteroids survival");
 
     InitGame();
@@ -91,25 +90,18 @@ int main()
 #if defined(PLATFORM_WEB)
     emscripten_set_main_loop(UpdateDrawFrame, 0, 1);
 #else
-
     SetTargetFPS(60);
     //--------------------------------------------------------------------------------------
     
     // Main game loop
     while (!WindowShouldClose())    // Detect window close button or ESC key
     {
-        // Update
+        // Update and Draw
         //----------------------------------------------------------------------------------
-        UpdateGame();
-        //----------------------------------------------------------------------------------
-
-        // Draw
-        //----------------------------------------------------------------------------------
-        DrawGame();
+        UpdateDrawFrame();
         //----------------------------------------------------------------------------------
     }
 #endif
-
     // De-Initialization
     //--------------------------------------------------------------------------------------
     UnloadGame();         // Unload loaded data (textures, sounds, models...)
@@ -359,7 +351,7 @@ void DrawGame(void)
                 else DrawCircleV(smallMeteor[i].position, smallMeteor[i].radius, Fade(LIGHTGRAY, 0.3f));
             }
 
-            DrawText(FormatText("TIME: %.02f", (float)framesCounter/60), 10, 10, 20, BLACK);
+            DrawText(TextFormat("TIME: %.02f", (float)framesCounter/60), 10, 10, 20, BLACK);
 
             if (pause) DrawText("GAME PAUSED", screenWidth/2 - MeasureText("GAME PAUSED", 40)/2, screenHeight/2 - 40, 40, GRAY);
         }

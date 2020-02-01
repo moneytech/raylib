@@ -8,25 +8,24 @@
 *   This game has been created using raylib (www.raylib.com)
 *   raylib is licensed under an unmodified zlib/libpng license (View raylib.h for details)
 *
-*   raylib - Copyright (c) 2014 Ramon Santamaria (@raysan5)
+*   Copyright (c) 2014-2020 Ramon Santamaria (@raysan5)
 *
 ********************************************************************************************/
 
 #include "raylib.h"
-#include "screens/screens.h"    // NOTE: Defines currentScreen
+#include "screens/screens.h"    // NOTE: Defines global variable: currentScreen
 
 //----------------------------------------------------------------------------------
 // Main entry point
 //----------------------------------------------------------------------------------
 int main(void)
 {
-	// Initialization
-	//---------------------------------------------------------
+    // Initialization (Note windowTitle is unused on Android)
+    //---------------------------------------------------------
     const int screenWidth = 800;
     const int screenHeight = 450;
-	const char windowTitle[30] = "<game name goes here>";
-    
-    InitWindow(screenWidth, screenHeight, windowTitle);
+
+    InitWindow(screenWidth, screenHeight, "raylib template - standard game");
 
     // TODO: Load global data here (assets that must be available in all screens, i.e. fonts)
     
@@ -34,8 +33,8 @@ int main(void)
     currentScreen = LOGO;   // NOTE: currentScreen is defined in screens.h as a global variable
     InitLogoScreen();
     
-	SetTargetFPS(60);
-	//----------------------------------------------------------
+    SetTargetFPS(60);
+    //----------------------------------------------------------
 
     // Main game loop
     while (!WindowShouldClose())    // Detect window close button or ESC key
@@ -139,6 +138,6 @@ int main(void)
     
     CloseWindow();        // Close window and OpenGL context
     //--------------------------------------------------------------------------------------
-	
+
     return 0;
 }

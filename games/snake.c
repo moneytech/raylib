@@ -43,19 +43,19 @@ typedef struct Food {
 //------------------------------------------------------------------------------------
 // Global Variables Declaration
 //------------------------------------------------------------------------------------
-static int screenWidth = 800;
-static int screenHeight = 450;
+static const int screenWidth = 800;
+static const int screenHeight = 450;
 
-static int framesCounter;
-static bool gameOver;
-static bool pause;
+static int framesCounter = 0;
+static bool gameOver = false;
+static bool pause = false;
 
-static Food fruit;
-static Snake snake[SNAKE_LENGTH];
-static Vector2 snakePosition[SNAKE_LENGTH];
-static bool allowMove;
-static Vector2 offset;
-static int counterTail;
+static Food fruit = { 0 };
+static Snake snake[SNAKE_LENGTH] = { 0 };
+static Vector2 snakePosition[SNAKE_LENGTH] = { 0 };
+static bool allowMove = false;
+static Vector2 offset = { 0 };
+static int counterTail = 0;
 
 //------------------------------------------------------------------------------------
 // Module Functions Declaration (local)
@@ -69,10 +69,10 @@ static void UpdateDrawFrame(void);  // Update and Draw (one frame)
 //------------------------------------------------------------------------------------
 // Program main entry point
 //------------------------------------------------------------------------------------
-int main()
+int main(void)
 {
-    // Initialization
-    //--------------------------------------------------------------------------------------
+    // Initialization (Note windowTitle is unused on Android)
+    //---------------------------------------------------------
     InitWindow(screenWidth, screenHeight, "sample game: snake");
 
     InitGame();
@@ -80,25 +80,18 @@ int main()
 #if defined(PLATFORM_WEB)
     emscripten_set_main_loop(UpdateDrawFrame, 0, 1);
 #else
-
     SetTargetFPS(60);
     //--------------------------------------------------------------------------------------
 
     // Main game loop
     while (!WindowShouldClose())    // Detect window close button or ESC key
     {
-        // Update
+        // Update and Draw
         //----------------------------------------------------------------------------------
-        UpdateGame();
-        //----------------------------------------------------------------------------------
-
-        // Draw
-        //----------------------------------------------------------------------------------
-        DrawGame();
+        UpdateDrawFrame();
         //----------------------------------------------------------------------------------
     }
 #endif
-
     // De-Initialization
     //--------------------------------------------------------------------------------------
     UnloadGame();         // Unload loaded data (textures, sounds, models...)
@@ -155,7 +148,7 @@ void UpdateGame(void)
         
         if (!pause)
         {
-            // control
+            // Player control
             if (IsKeyPressed(KEY_RIGHT) && (snake[0].speed.x == 0) && allowMove)
             {
                 snake[0].speed = (Vector2){ SQUARE_SIZE, 0 };
@@ -177,7 +170,7 @@ void UpdateGame(void)
                 allowMove = false;
             }
 
-            // movement
+            // Snake movement
             for (int i = 0; i < counterTail; i++) snakePosition[i] = snake[i].position;
 
             if ((framesCounter%5) == 0)
@@ -194,7 +187,7 @@ void UpdateGame(void)
                 }
             }
 
-            // wall behaviour
+            // Wall behaviour
             if (((snake[0].position.x) > (screenWidth - offset.x)) || 
                 ((snake[0].position.y) > (screenHeight - offset.y)) ||
                 (snake[0].position.x < 0) || (snake[0].position.y < 0))
@@ -202,13 +195,13 @@ void UpdateGame(void)
                 gameOver = true;
             }
 
-            // collision with yourself
+            // Collision with yourself
             for (int i = 1; i < counterTail; i++)
             {
                 if ((snake[0].position.x == snake[i].position.x) && (snake[0].position.y == snake[i].position.y)) gameOver = true;
             }
 
-            // TODO: review logic: fruit.position calculation
+            // Fruit position calculation
             if (!fruit.active)
             {
                 fruit.active = true;
@@ -216,17 +209,17 @@ void UpdateGame(void)
 
                 for (int i = 0; i < counterTail; i++)
                 {
-                       while ((fruit.position.x == snake[i].position.x) && (fruit.position.y == snake[i].position.y))
-                       {
-                           fruit.position = (Vector2){ GetRandomValue(0, (screenWidth/SQUARE_SIZE) - 1)*SQUARE_SIZE, GetRandomValue(0, (screenHeight/SQUARE_SIZE) - 1)*SQUARE_SIZE };
-                           i = 0;
-                       }
+                    while ((fruit.position.x == snake[i].position.x) && (fruit.position.y == snake[i].position.y))
+                    {
+                        fruit.position = (Vector2){ GetRandomValue(0, (screenWidth/SQUARE_SIZE) - 1)*SQUARE_SIZE + offset.x/2, GetRandomValue(0, (screenHeight/SQUARE_SIZE) - 1)*SQUARE_SIZE + offset.y/2 };
+                        i = 0;
+                    }
                 }
             }
 
-            // collision
-            if (CheckCollisionRecs((Rectangle){(int)snake[0].position.x, (int)snake[0].position.y, (int)snake[0].size.x, (int)snake[0].size.y},
-                                   (Rectangle){(int)fruit.position.x, (int)fruit.position.y, (int)fruit.size.x, (int)fruit.size.y}))
+            // Collision
+            if ((snake[0].position.x < (fruit.position.x + fruit.size.x) && (snake[0].position.x + snake[0].size.x) > fruit.position.x) &&
+                (snake[0].position.y < (fruit.position.y + fruit.size.y) && (snake[0].position.y + snake[0].size.y) > fruit.position.y))
             {
                 snake[counterTail].position = snakePosition[counterTail - 1];
                 counterTail += 1;

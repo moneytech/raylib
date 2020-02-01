@@ -25,7 +25,6 @@
 //----------------------------------------------------------------------------------
 // Some Defines
 //----------------------------------------------------------------------------------
-
 #define PLAYER_MAX_LIFE         5
 #define LINES_OF_BRICKS         5
 #define BRICKS_PER_LINE        20
@@ -56,17 +55,16 @@ typedef struct Brick {
 //------------------------------------------------------------------------------------
 // Global Variables Declaration
 //------------------------------------------------------------------------------------
-static int screenWidth = 800;
-static int screenHeight = 450;
+static const int screenWidth = 800;
+static const int screenHeight = 450;
 
-static int framesCounter;
-static bool gameOver;
-static bool pause;
+static bool gameOver = false;
+static bool pause = false;
 
-static Player player;
-static Ball ball;
-static Brick brick[LINES_OF_BRICKS][BRICKS_PER_LINE];
-static Vector2 brickSize;
+static Player player = { 0 };
+static Ball ball = { 0 };
+static Brick brick[LINES_OF_BRICKS][BRICKS_PER_LINE] = { 0 };
+static Vector2 brickSize = { 0 };
 
 //------------------------------------------------------------------------------------
 // Module Functions Declaration (local)
@@ -77,16 +75,13 @@ static void DrawGame(void);         // Draw game (one frame)
 static void UnloadGame(void);       // Unload game
 static void UpdateDrawFrame(void);  // Update and Draw (one frame)
 
-// Additional module functions
-static void UpdateBall(void);
-
 //------------------------------------------------------------------------------------
 // Program main entry point
 //------------------------------------------------------------------------------------
-int main()
+int main(void)
 {
-    // Initialization
-    //--------------------------------------------------------------------------------------
+    // Initialization (Note windowTitle is unused on Android)
+    //---------------------------------------------------------
     InitWindow(screenWidth, screenHeight, "sample game: arkanoid");
 
     InitGame();
@@ -94,25 +89,18 @@ int main()
 #if defined(PLATFORM_WEB)
     emscripten_set_main_loop(UpdateDrawFrame, 0, 1);
 #else
-
     SetTargetFPS(60);
     //--------------------------------------------------------------------------------------
     
     // Main game loop
     while (!WindowShouldClose())    // Detect window close button or ESC key
     {
-        // Update
+        // Update and Draw
         //----------------------------------------------------------------------------------
-        UpdateGame();
-        //----------------------------------------------------------------------------------
-
-        // Draw
-        //----------------------------------------------------------------------------------
-        DrawGame();
+        UpdateDrawFrame();
         //----------------------------------------------------------------------------------
     }
 #endif
-
     // De-Initialization
     //--------------------------------------------------------------------------------------
     UnloadGame();         // Unload loaded data (textures, sounds, models...)
@@ -165,13 +153,13 @@ void UpdateGame(void)
 
         if (!pause)
         {
-            // Player movement
+            // Player movement logic
             if (IsKeyDown(KEY_LEFT)) player.position.x -= 5;
             if ((player.position.x - player.size.x/2) <= 0) player.position.x = player.size.x/2;
             if (IsKeyDown(KEY_RIGHT)) player.position.x += 5;
             if ((player.position.x + player.size.x/2) >= screenWidth) player.position.x = screenWidth - player.size.x/2;
 
-            // Launch ball
+            // Ball launching logic
             if (!ball.active)
             {
                 if (IsKeyPressed(KEY_SPACE))
@@ -181,7 +169,81 @@ void UpdateGame(void)
                 }
             }
             
-            UpdateBall();
+            // Ball movement logic
+            if (ball.active)
+            {
+                ball.position.x += ball.speed.x;
+                ball.position.y += ball.speed.y;
+            }
+            else
+            {
+                ball.position = (Vector2){ player.position.x, screenHeight*7/8 - 30 };
+            }
+
+            // Collision logic: ball vs walls 
+            if (((ball.position.x + ball.radius) >= screenWidth) || ((ball.position.x - ball.radius) <= 0)) ball.speed.x *= -1;
+            if ((ball.position.y - ball.radius) <= 0) ball.speed.y *= -1;
+            if ((ball.position.y + ball.radius) >= screenHeight)
+            {
+                ball.speed = (Vector2){ 0, 0 };
+                ball.active = false;
+
+                player.life--;
+            }
+
+            // Collision logic: ball vs player
+            if (CheckCollisionCircleRec(ball.position, ball.radius,
+                (Rectangle){ player.position.x - player.size.x/2, player.position.y - player.size.y/2, player.size.x, player.size.y}))
+            {
+                if (ball.speed.y > 0)
+                {
+                    ball.speed.y *= -1;
+                    ball.speed.x = (ball.position.x - player.position.x)/(player.size.x/2)*5;
+                }
+            }
+
+            // Collision logic: ball vs bricks
+            for (int i = 0; i < LINES_OF_BRICKS; i++)
+            {
+                for (int j = 0; j < BRICKS_PER_LINE; j++)
+                {
+                    if (brick[i][j].active)
+                    {
+                        // Hit below
+                        if (((ball.position.y - ball.radius) <= (brick[i][j].position.y + brickSize.y/2)) &&
+                            ((ball.position.y - ball.radius) > (brick[i][j].position.y + brickSize.y/2 + ball.speed.y)) &&
+                            ((fabs(ball.position.x - brick[i][j].position.x)) < (brickSize.x/2 + ball.radius*2/3)) && (ball.speed.y < 0))
+                        {
+                            brick[i][j].active = false;
+                            ball.speed.y *= -1;
+                        }
+                        // Hit above
+                        else if (((ball.position.y + ball.radius) >= (brick[i][j].position.y - brickSize.y/2)) &&
+                                ((ball.position.y + ball.radius) < (brick[i][j].position.y - brickSize.y/2 + ball.speed.y)) &&
+                                ((fabs(ball.position.x - brick[i][j].position.x)) < (brickSize.x/2 + ball.radius*2/3)) && (ball.speed.y > 0))
+                        {
+                            brick[i][j].active = false;
+                            ball.speed.y *= -1;
+                        }
+                        // Hit left
+                        else if (((ball.position.x + ball.radius) >= (brick[i][j].position.x - brickSize.x/2)) &&
+                                ((ball.position.x + ball.radius) < (brick[i][j].position.x - brickSize.x/2 + ball.speed.x)) &&
+                                ((fabs(ball.position.y - brick[i][j].position.y)) < (brickSize.y/2 + ball.radius*2/3)) && (ball.speed.x > 0))
+                        {
+                            brick[i][j].active = false;
+                            ball.speed.x *= -1;
+                        }
+                        // Hit right
+                        else if (((ball.position.x - ball.radius) <= (brick[i][j].position.x + brickSize.x/2)) &&
+                                ((ball.position.x - ball.radius) > (brick[i][j].position.x + brickSize.x/2 + ball.speed.x)) &&
+                                ((fabs(ball.position.y - brick[i][j].position.y)) < (brickSize.y/2 + ball.radius*2/3)) && (ball.speed.x < 0))
+                        {
+                            brick[i][j].active = false;
+                            ball.speed.x *= -1;
+                        }
+                    }
+                }
+            }
 
             // Game over logic
             if (player.life <= 0) gameOver = true;
@@ -207,8 +269,6 @@ void UpdateGame(void)
             gameOver = false;
         }
     }
-    
-
 }
 
 // Draw game (one frame)
@@ -260,90 +320,4 @@ void UpdateDrawFrame(void)
 {
     UpdateGame();
     DrawGame();
-}
-
-//--------------------------------------------------------------------------------------
-// Additional module functions
-//--------------------------------------------------------------------------------------
-static void UpdateBall()
-{
-    // Update position
-    if (ball.active)
-    {
-        ball.position.x += ball.speed.x;
-        ball.position.y += ball.speed.y;
-    }
-    else
-    {
-        ball.position = (Vector2){ player.position.x, screenHeight*7/8 - 30 };
-    }
-
-    // Bounce in x
-    if (((ball.position.x + ball.radius) >= screenWidth) || ((ball.position.x - ball.radius) <= 0)) ball.speed.x *= -1;
-
-    // Bounce in y
-    if ((ball.position.y - ball.radius) <= 0) ball.speed.y *= -1;
-
-    // Ball reaches bottom of the screen
-    if ((ball.position.y + ball.radius) >= screenHeight)
-    {
-        ball.speed = (Vector2){ 0, 0 };
-        ball.active = false;
-
-        player.life--;
-    }
-
-    // Collision logic: ball vs player
-    if (CheckCollisionCircleRec(ball.position, ball.radius,
-        (Rectangle){ player.position.x - player.size.x/2, player.position.y - player.size.y/2, player.size.x, player.size.y}))
-    {
-        if (ball.speed.y > 0)
-        {
-            ball.speed.y *= -1;
-            ball.speed.x = (ball.position.x - player.position.x)/(player.size.x/2)*5;
-        }
-    }
-
-    // Collision logic: ball vs bricks
-    for (int i = 0; i < LINES_OF_BRICKS; i++)
-    {
-        for (int j = 0; j < BRICKS_PER_LINE; j++)
-        {
-            if (brick[i][j].active)
-            {
-                // Hit below
-                if (((ball.position.y - ball.radius) <= (brick[i][j].position.y + brickSize.y/2)) &&
-                    ((ball.position.y - ball.radius) > (brick[i][j].position.y + brickSize.y/2 + ball.speed.y)) &&
-                    ((fabs(ball.position.x - brick[i][j].position.x)) < (brickSize.x/2 + ball.radius*2/3)) && (ball.speed.y < 0))
-                {
-                    brick[i][j].active = false;
-                    ball.speed.y *= -1;
-                }
-                // Hit above
-                else if (((ball.position.y + ball.radius) >= (brick[i][j].position.y - brickSize.y/2)) &&
-                        ((ball.position.y + ball.radius) < (brick[i][j].position.y - brickSize.y/2 + ball.speed.y)) &&
-                        ((fabs(ball.position.x - brick[i][j].position.x)) < (brickSize.x/2 + ball.radius*2/3)) && (ball.speed.y > 0))
-                {
-                    brick[i][j].active = false;
-                    ball.speed.y *= -1;
-                }
-                // Hit left
-                else if (((ball.position.x + ball.radius) >= (brick[i][j].position.x - brickSize.x/2)) &&
-                        ((ball.position.x + ball.radius) < (brick[i][j].position.x - brickSize.x/2 + ball.speed.x)) &&
-                        ((fabs(ball.position.y - brick[i][j].position.y)) < (brickSize.y/2 + ball.radius*2/3)) && (ball.speed.x > 0))
-                {
-                    brick[i][j].active = false;
-                    ball.speed.x *= -1;
-                }
-                // Hit right
-                else if (((ball.position.x - ball.radius) <= (brick[i][j].position.x + brickSize.x/2)) &&
-                        ((ball.position.x - ball.radius) > (brick[i][j].position.x + brickSize.x/2 + ball.speed.x)) &&
-                        ((fabs(ball.position.y - brick[i][j].position.y)) < (brickSize.y/2 + ball.radius*2/3)) && (ball.speed.x < 0))
-                {
-                    brick[i][j].active = false;
-                    ball.speed.x *= -1;
-                }
-            }
-        }
-    }
 }

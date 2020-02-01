@@ -51,26 +51,28 @@
 #ifndef INCLUDE_JAR_XM_H
 #define INCLUDE_JAR_XM_H
 
+#include <stdint.h>
+
 #define JAR_XM_DEBUG 0
 #define JAR_XM_LINEAR_INTERPOLATION 1 // speed increase with decrease in quality
 #define JAR_XM_DEFENSIVE 1
 #define JAR_XM_RAMPING 1
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdint.h>
-#include <limits.h>
-#include <string.h>
-
-
-
-//-------------------------------------------------------------------------------
-#ifdef __cplusplus
-extern "C" {
+// Allow custom memory allocators
+#ifndef JARXM_MALLOC
+    #define JARXM_MALLOC(sz)    malloc(sz)
+#endif
+#ifndef JARXM_FREE
+    #define JARXM_FREE(p)       free(p)
 #endif
 
+//-------------------------------------------------------------------------------
 struct jar_xm_context_s;
 typedef struct jar_xm_context_s jar_xm_context_t;
+
+#ifdef __cplusplus
+extern "C" { 
+#endif
 
 /** Create a XM context.
  *
@@ -133,7 +135,7 @@ void jar_xm_generate_samples(jar_xm_context_t* ctx, float* output, size_t numsam
  */
 void jar_xm_generate_samples_16bit(jar_xm_context_t* ctx, short* output, size_t numsamples)
 {
-    float* musicBuffer = malloc((2*numsamples)*sizeof(float));
+    float* musicBuffer = JARXM_MALLOC((2*numsamples)*sizeof(float));
     jar_xm_generate_samples(ctx, musicBuffer, numsamples);
 
     if(output){
@@ -142,7 +144,7 @@ void jar_xm_generate_samples_16bit(jar_xm_context_t* ctx, short* output, size_t 
             output[x] = musicBuffer[x] * SHRT_MAX;
     }
 
-    free(musicBuffer);
+    JARXM_FREE(musicBuffer);
 }
 
 /** Play the module, resample from 32 bit to 8 bit, and put the sound samples in an output buffer.
@@ -152,7 +154,7 @@ void jar_xm_generate_samples_16bit(jar_xm_context_t* ctx, short* output, size_t 
  */
 void jar_xm_generate_samples_8bit(jar_xm_context_t* ctx, char* output, size_t numsamples)
 {
-    float* musicBuffer = malloc((2*numsamples)*sizeof(float));
+    float* musicBuffer = JARXM_MALLOC((2*numsamples)*sizeof(float));
     jar_xm_generate_samples(ctx, musicBuffer, numsamples);
 
     if(output){
@@ -161,7 +163,7 @@ void jar_xm_generate_samples_8bit(jar_xm_context_t* ctx, char* output, size_t nu
             output[x] = musicBuffer[x] * CHAR_MAX;
     }
 
-    free(musicBuffer);
+    JARXM_FREE(musicBuffer);
 }
 
 
@@ -306,9 +308,12 @@ uint64_t jar_xm_get_remaining_samples(jar_xm_context_t* ctx);
 #ifdef JAR_XM_IMPLEMENTATION
 
 #include <math.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <limits.h>
 #include <string.h>
 
-#ifdef JAR_XM_DEBUG
+#if JAR_XM_DEBUG            //JAR_XM_DEBUG defined as 0
 #include <stdio.h>
 #define DEBUG(fmt, ...) do {                                        \
         fprintf(stderr, "%s(): " fmt "\n", __func__, __VA_ARGS__);    \
@@ -612,6 +617,8 @@ int jar_xm_create_context(jar_xm_context_t** ctxp, const char* moddata, uint32_t
     return jar_xm_create_context_safe(ctxp, moddata, SIZE_MAX, rate);
 }
 
+#define ALIGN(x, b) (((x) + ((b) - 1)) & ~((b) - 1))
+#define ALIGN_PTR(x, b) (void*)(((uintptr_t)(x) + ((b) - 1)) & ~((b) - 1))
 int jar_xm_create_context_safe(jar_xm_context_t** ctxp, const char* moddata, size_t moddata_length, uint32_t rate) {
 #if JAR_XM_DEFENSIVE
     int ret;
@@ -628,10 +635,10 @@ int jar_xm_create_context_safe(jar_xm_context_t** ctxp, const char* moddata, siz
 #endif
 
     bytes_needed = jar_xm_get_memory_needed_for_context(moddata, moddata_length);
-    mempool = malloc(bytes_needed);
+    mempool = JARXM_MALLOC(bytes_needed);
     if(mempool == NULL && bytes_needed > 0) {
-        /* malloc() failed, trouble ahead */
-        DEBUG("call to malloc() failed, returned %p", (void*)mempool);
+        /* JARXM_MALLOC() failed, trouble ahead */
+        DEBUG("call to JARXM_MALLOC() failed, returned %p", (void*)mempool);
         return 2;
     }
 
@@ -639,14 +646,16 @@ int jar_xm_create_context_safe(jar_xm_context_t** ctxp, const char* moddata, siz
     memset(mempool, 0, bytes_needed);
 
     ctx = (*ctxp = (jar_xm_context_t *)mempool);
-    ctx->allocated_memory = mempool; /* Keep original pointer for free() */
+    ctx->allocated_memory = mempool; /* Keep original pointer for JARXM_FREE() */
     mempool += sizeof(jar_xm_context_t);
 
     ctx->rate = rate;
     mempool = jar_xm_load_module(ctx, moddata, moddata_length, mempool);
+    mempool = ALIGN_PTR(mempool, 16);
 
     ctx->channels = (jar_xm_channel_context_t*)mempool;
     mempool += ctx->module.num_channels * sizeof(jar_xm_channel_context_t);
+    mempool = ALIGN_PTR(mempool, 16);
 
     ctx->global_volume = 1.f;
     ctx->amplification = .25f; /* XXX: some bad modules may still clip. Find out something better. */
@@ -671,6 +680,7 @@ int jar_xm_create_context_safe(jar_xm_context_t** ctxp, const char* moddata, siz
         ch->actual_panning = .5f;
     }
 
+    mempool = ALIGN_PTR(mempool, 16);
     ctx->row_loop_count = (uint8_t*)mempool;
     mempool += MAX_NUM_ROWS * sizeof(uint8_t);
 
@@ -686,7 +696,7 @@ int jar_xm_create_context_safe(jar_xm_context_t** ctxp, const char* moddata, siz
 }
 
 void jar_xm_free_context(jar_xm_context_t* ctx) {
-    free(ctx->allocated_memory);
+    JARXM_FREE(ctx->allocated_memory);
 }
 
 void jar_xm_set_max_loop_count(jar_xm_context_t* ctx, uint8_t loopcnt) {
@@ -782,7 +792,7 @@ uint64_t jar_xm_get_latest_trigger_of_channel(jar_xm_context_t* ctx, uint16_t ch
 #define READ_U32(offset) ((uint32_t)READ_U16(offset) | ((uint32_t)READ_U16((offset) + 2) << 16))
 #define READ_MEMCPY(ptr, offset, length) memcpy_pad(ptr, length, moddata, moddata_length, offset)
 
-static inline void memcpy_pad(void* dst, size_t dst_len, const void* src, size_t src_len, size_t offset) {
+static void memcpy_pad(void* dst, size_t dst_len, const void* src, size_t src_len, size_t offset) {
     uint8_t* dst_c = dst;
     const uint8_t* src_c = src;
 
@@ -850,15 +860,15 @@ size_t jar_xm_get_memory_needed_for_context(const char* moddata, size_t moddata_
     uint16_t num_instruments;
 
     /* Read the module header */
-
-    num_channels = READ_U16(offset + 8);
     num_channels = READ_U16(offset + 8);
 
     num_patterns = READ_U16(offset + 10);
     memory_needed += num_patterns * sizeof(jar_xm_pattern_t);
+    memory_needed  = ALIGN(memory_needed, 16);
 
     num_instruments = READ_U16(offset + 12);
     memory_needed += num_instruments * sizeof(jar_xm_instrument_t);
+    memory_needed  = ALIGN(memory_needed, 16);
 
     memory_needed += MAX_NUM_ROWS * READ_U16(offset + 4) * sizeof(uint8_t); /* Module length */
 
@@ -875,6 +885,7 @@ size_t jar_xm_get_memory_needed_for_context(const char* moddata, size_t moddata_
         /* Pattern header length + packed pattern data size */
         offset += READ_U32(offset) + READ_U16(offset + 7);
     }
+    memory_needed  = ALIGN(memory_needed, 16);
 
     /* Read instrument headers */
     for(uint16_t i = 0; i < num_instruments; ++i) {
@@ -940,9 +951,11 @@ char* jar_xm_load_module(jar_xm_context_t* ctx, const char* moddata, size_t modd
 
     mod->patterns = (jar_xm_pattern_t*)mempool;
     mempool += mod->num_patterns * sizeof(jar_xm_pattern_t);
+    mempool = ALIGN_PTR(mempool, 16);
 
     mod->instruments = (jar_xm_instrument_t*)mempool;
     mempool += mod->num_instruments * sizeof(jar_xm_instrument_t);
+    mempool = ALIGN_PTR(mempool, 16);
 
     uint16_t flags = READ_U32(offset + 14);
     mod->frequency_type = (flags & (1 << 0)) ? jar_xm_LINEAR_FREQUENCIES : jar_xm_AMIGA_FREQUENCIES;
@@ -1032,6 +1045,7 @@ char* jar_xm_load_module(jar_xm_context_t* ctx, const char* moddata, size_t modd
 
         offset += packed_patterndata_size;
     }
+    mempool = ALIGN_PTR(mempool, 16);
 
     /* Read instruments */
     for(uint16_t i = 0; i < ctx->module.num_instruments; ++i) {
@@ -1916,7 +1930,6 @@ static void jar_xm_handle_note_and_instrument(jar_xm_context_t* ctx, jar_xm_chan
 
     case 33: /* Xxy: Extra stuff */
         switch(s->effect_param >> 4) {
-
         case 1: /* X1y: Extra fine portamento up */
             if(s->effect_param & 0x0F) {
                 ch->extra_fine_portamento_up_param = s->effect_param & 0x0F;
@@ -2356,7 +2369,7 @@ static void jar_xm_tick(jar_xm_context_t* ctx) {
         float panning, volume;
 
         panning = ch->panning +
-            (ch->panning_envelope_panning - .5f) * (.5f - fabsf(ch->panning - .5f)) * 2.0f;
+            (ch->panning_envelope_panning - .5f) * (.5f - fabs(ch->panning - .5f)) * 2.0f;
 
         if(ch->tremor_on) {
                 volume = .0f;
@@ -2550,27 +2563,21 @@ uint64_t jar_xm_get_remaining_samples(jar_xm_context_t* ctx)
     uint64_t total = 0;
     uint8_t currentLoopCount = jar_xm_get_loop_count(ctx);
     jar_xm_set_max_loop_count(ctx, 0);
-    
+
     while(jar_xm_get_loop_count(ctx) == currentLoopCount)
     {
         total += ctx->remaining_samples_in_tick;
         ctx->remaining_samples_in_tick = 0;
         jar_xm_tick(ctx);
     }
-    
+
     ctx->loop_count = currentLoopCount;
     return total;
 }
 
-
-
-
-
 //--------------------------------------------
 //FILE LOADER - TODO - NEEDS TO BE CLEANED UP
 //--------------------------------------------
-
-
 
 #undef DEBUG
 #define DEBUG(...) do {      \
@@ -2599,6 +2606,7 @@ uint64_t jar_xm_get_remaining_samples(jar_xm_context_t* ctx)
 int jar_xm_create_context_from_file(jar_xm_context_t** ctx, uint32_t rate, const char* filename) {
     FILE* xmf;
     int size;
+    int ret;
 
     xmf = fopen(filename, "rb");
     if(xmf == NULL) {
@@ -2617,17 +2625,21 @@ int jar_xm_create_context_from_file(jar_xm_context_t** ctx, uint32_t rate, const
         return 4;
     }
 
-    char* data = malloc(size + 1);
-    if(fread(data, 1, size, xmf) < size) {
+    char* data = JARXM_MALLOC(size + 1);
+    if(!data || fread(data, 1, size, xmf) < size) {
         fclose(xmf);
-        DEBUG_ERR("fread() failed");
+        DEBUG_ERR(data ? "fread() failed" : "JARXM_MALLOC() failed");
+        JARXM_FREE(data);
         *ctx = NULL;
         return 5;
     }
 
     fclose(xmf);
 
-    switch(jar_xm_create_context_safe(ctx, data, size, rate)) {
+    ret = jar_xm_create_context_safe(ctx, data, size, rate);
+    JARXM_FREE(data);
+
+    switch(ret) {
     case 0:
         break;
 
@@ -2652,13 +2664,23 @@ int jar_xm_create_context_from_file(jar_xm_context_t** ctx, uint32_t rate, const
     return 0;
 }
 
-
+// not part of the original library
+void jar_xm_reset(jar_xm_context_t* ctx)
+{
+    // I don't know what I am doing
+    // this is probably very broken
+    // but it kinda works
+    for (uint16_t i = 0; i < jar_xm_get_number_of_channels(ctx); i++)
+    {
+        jar_xm_cut_note(&ctx->channels[i]);
+    }
+    ctx->current_row = 0;
+    ctx->current_table_index = 0;
+    ctx->current_tick = 0;
+}
 
 
 #endif//end of JAR_XM_IMPLEMENTATION
 //-------------------------------------------------------------------------------
-
-
-
 
 #endif//end of INCLUDE_JAR_XM_H

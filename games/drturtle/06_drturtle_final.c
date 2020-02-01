@@ -35,7 +35,6 @@ int main()
     const int screenHeight = 720;
     
     // Init window
-    ShowLogo();
     InitWindow(screenWidth, screenHeight, "Dr. Turtle & Mr. GAMERA");
     
     // Initialize audio device
@@ -55,7 +54,7 @@ int main()
     Texture2D gframe = LoadTexture("resources/gframe.png");
     
     // Load game resources: fonts
-    SpriteFont font = LoadSpriteFont("resources/komika.png");
+    Font font = LoadFont("resources/komika.png");
     
     // Load game resources: sounds
     Sound eat = LoadSound("resources/eat.wav");
@@ -479,7 +478,7 @@ int main()
     UnloadTexture(gamera);
     
     // Unload font texture
-    UnloadSpriteFont(font);
+    UnloadFont(font);
     
     // Unload sounds
     UnloadSound(eat);

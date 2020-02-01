@@ -44,8 +44,8 @@ typedef enum GridSquare { EMPTY, MOVING, FULL, BLOCK, FADING } GridSquare;
 //------------------------------------------------------------------------------------
 // Global Variables Declaration
 //------------------------------------------------------------------------------------
-static int screenWidth = 800;
-static int screenHeight = 450;
+static const int screenWidth = 800;
+static const int screenHeight = 450;
 
 static bool gameOver = false;
 static bool pause = false;
@@ -99,16 +99,16 @@ static void ResolveFallingMovement();
 static bool ResolveLateralMovement();
 static bool ResolveTurnMovement();
 static void CheckDetection();
-static void CheckCompletition();
+static void CheckCompletion();
 static void DeleteCompleteLines();
 
 //------------------------------------------------------------------------------------
 // Program main entry point
 //------------------------------------------------------------------------------------
-int main()
+int main(void)
 {
-    // Initialization
-    //--------------------------------------------------------------------------------------
+    // Initialization (Note windowTitle is unused on Android)
+    //---------------------------------------------------------
     InitWindow(screenWidth, screenHeight, "sample game: tetris");
 
     InitGame();
@@ -116,25 +116,18 @@ int main()
 #if defined(PLATFORM_WEB)
     emscripten_set_main_loop(UpdateDrawFrame, 0, 1);
 #else
-
     SetTargetFPS(60);
     //--------------------------------------------------------------------------------------
     
     // Main game loop
     while (!WindowShouldClose())    // Detect window close button or ESC key
     {
-        // Update
+        // Update and Draw
         //----------------------------------------------------------------------------------
-        UpdateGame();
-        //----------------------------------------------------------------------------------
-
-        // Draw
-        //----------------------------------------------------------------------------------
-        DrawGame();
+        UpdateDrawFrame();
         //----------------------------------------------------------------------------------
     }
 #endif
-
     // De-Initialization
     //--------------------------------------------------------------------------------------
     UnloadGame();         // Unload loaded data (textures, sounds, models...)
@@ -244,7 +237,7 @@ void UpdateGame(void)
                         ResolveFallingMovement(&detection, &pieceActive);
 
                         // Check if we fullfilled a line and if so, erase the line and pull down the the lines above
-                        CheckCompletition(&lineToDelete);
+                        CheckCompletion(&lineToDelete);
 
                         gravityMovementCounter = 0;
                     }
@@ -392,7 +385,7 @@ void DrawGame(void)
             }
             
             DrawText("INCOMING:", offset.x, offset.y - 100, 10, GRAY);
-            DrawText(FormatText("LINES:      %04i", lines), offset.x, offset.y + 20, 10, GRAY);
+            DrawText(TextFormat("LINES:      %04i", lines), offset.x, offset.y + 20, 10, GRAY);
             
             if (pause) DrawText("GAME PAUSED", screenWidth/2 - MeasureText("GAME PAUSED", 40)/2, screenHeight/2 - 40, 40, GRAY);
         }
@@ -455,8 +448,7 @@ static bool Createpiece()
 
 static void GetRandompiece()
 {
-    srand(time(NULL));
-    int random = rand() % 7;
+    int random = GetRandomValue(0, 6);
 
     for (int i = 0; i < 4; i++)
     {
@@ -466,15 +458,15 @@ static void GetRandompiece()
         }
     }
 
-    switch(random)
+    switch (random)
     {
-        case 0:    {    incomingPiece[1][1] = MOVING;   incomingPiece[2][1] = MOVING;    incomingPiece[1][2] = MOVING;    incomingPiece[2][2] = MOVING;    }    break;    //Cube
-        case 1:    {    incomingPiece[1][0] = MOVING;    incomingPiece[1][1] = MOVING;    incomingPiece[1][2] = MOVING;    incomingPiece[2][2] = MOVING;    }    break;    //L
-        case 2:    {    incomingPiece[1][2] = MOVING;    incomingPiece[2][0] = MOVING;    incomingPiece[2][1] = MOVING;    incomingPiece[2][2] = MOVING;    }    break;    //L inversa
-        case 3:    {    incomingPiece[0][1] = MOVING;    incomingPiece[1][1] = MOVING;    incomingPiece[2][1] = MOVING;    incomingPiece[3][1] = MOVING;    }    break;    //Recta
-        case 4:    {    incomingPiece[1][0] = MOVING;    incomingPiece[1][1] = MOVING;    incomingPiece[1][2] = MOVING;    incomingPiece[2][1] = MOVING;    }    break;    //Creu tallada
-        case 5: {    incomingPiece[1][1] = MOVING;    incomingPiece[2][1] = MOVING;     incomingPiece[2][2] = MOVING;    incomingPiece[3][2] = MOVING;    }    break;    //S
-        case 6: {    incomingPiece[1][2] = MOVING;    incomingPiece[2][2] = MOVING;     incomingPiece[2][1] = MOVING;    incomingPiece[3][1] = MOVING;    }    break;    //S inversa
+        case 0: { incomingPiece[1][1] = MOVING; incomingPiece[2][1] = MOVING; incomingPiece[1][2] = MOVING; incomingPiece[2][2] = MOVING; } break;    //Cube
+        case 1: { incomingPiece[1][0] = MOVING; incomingPiece[1][1] = MOVING; incomingPiece[1][2] = MOVING; incomingPiece[2][2] = MOVING; } break;    //L
+        case 2: { incomingPiece[1][2] = MOVING; incomingPiece[2][0] = MOVING; incomingPiece[2][1] = MOVING; incomingPiece[2][2] = MOVING; } break;    //L inversa
+        case 3: { incomingPiece[0][1] = MOVING; incomingPiece[1][1] = MOVING; incomingPiece[2][1] = MOVING; incomingPiece[3][1] = MOVING; } break;    //Recta
+        case 4: { incomingPiece[1][0] = MOVING; incomingPiece[1][1] = MOVING; incomingPiece[1][2] = MOVING; incomingPiece[2][1] = MOVING; } break;    //Creu tallada
+        case 5: { incomingPiece[1][1] = MOVING; incomingPiece[2][1] = MOVING; incomingPiece[2][2] = MOVING; incomingPiece[3][2] = MOVING; } break;    //S
+        case 6: { incomingPiece[1][2] = MOVING; incomingPiece[2][2] = MOVING; incomingPiece[2][1] = MOVING; incomingPiece[3][1] = MOVING; } break;    //S inversa
     }
 }
 
@@ -496,8 +488,7 @@ static void ResolveFallingMovement(bool *detection, bool *pieceActive)
             }
         }
     }
-    // We move down the piece
-    else
+    else    // We move down the piece
     {
         for (int j = GRID_VERTICAL_SIZE - 2; j >= 0; j--)
         {
@@ -510,6 +501,7 @@ static void ResolveFallingMovement(bool *detection, bool *pieceActive)
                 }
             }
         }
+        
         piecePositionY++;
     }
 }
@@ -518,8 +510,8 @@ static bool ResolveLateralMovement()
 {
     bool collision = false;
 
-    // Move left
-    if (IsKeyDown(KEY_LEFT))
+    // Piece movement
+    if (IsKeyDown(KEY_LEFT))        // Move left
     {
         // Check if is possible to move to left
         for (int j = GRID_VERTICAL_SIZE - 2; j >= 0; j--)
@@ -533,6 +525,7 @@ static bool ResolveLateralMovement()
                 }
             }
         }
+        
         // If able, move left
         if (!collision)
         {
@@ -552,9 +545,7 @@ static bool ResolveLateralMovement()
             piecePositionX--;
         }
     }
-
-    // Move right
-    else if (IsKeyDown(KEY_RIGHT))
+    else if (IsKeyDown(KEY_RIGHT))  // Move right
     {
         // Check if is possible to move to right
         for (int j = GRID_VERTICAL_SIZE - 2; j >= 0; j--)
@@ -572,6 +563,7 @@ static bool ResolveLateralMovement()
                 }
             }
         }
+        
         // If able move right
         if (!collision)
         {
@@ -600,112 +592,73 @@ static bool ResolveTurnMovement()
     // Input for turning the piece
     if (IsKeyDown(KEY_UP))
     {
-        int aux;
+        int aux = 0;
         bool checker = false;
 
         // Check all turning possibilities
         if ((grid[piecePositionX + 3][piecePositionY] == MOVING) &&
             (grid[piecePositionX][piecePositionY] != EMPTY) &&
-            (grid[piecePositionX][piecePositionY] != MOVING))
-        {    
-            checker = true;
-        }
+            (grid[piecePositionX][piecePositionY] != MOVING)) checker = true;
+
         if ((grid[piecePositionX + 3][piecePositionY + 3] == MOVING) &&
             (grid[piecePositionX + 3][piecePositionY] != EMPTY) &&
-            (grid[piecePositionX + 3][piecePositionY] != MOVING))
-        {    
-            checker = true;
-        }
+            (grid[piecePositionX + 3][piecePositionY] != MOVING)) checker = true;
+
         if ((grid[piecePositionX][piecePositionY + 3] == MOVING) &&
             (grid[piecePositionX + 3][piecePositionY + 3] != EMPTY) &&
-            (grid[piecePositionX + 3][piecePositionY + 3] != MOVING))
-        {    
-            checker = true;
-        }
+            (grid[piecePositionX + 3][piecePositionY + 3] != MOVING)) checker = true;
+
         if ((grid[piecePositionX][piecePositionY] == MOVING) &&
             (grid[piecePositionX][piecePositionY + 3] != EMPTY) &&
-            (grid[piecePositionX][piecePositionY + 3] != MOVING))
-        {    
-            checker = true;
-        }
-
+            (grid[piecePositionX][piecePositionY + 3] != MOVING)) checker = true;
 
         if ((grid[piecePositionX + 1][piecePositionY] == MOVING) &&
             (grid[piecePositionX][piecePositionY + 2] != EMPTY) &&
-            (grid[piecePositionX][piecePositionY + 2] != MOVING))
-        {    
-            checker = true;
-        }
+            (grid[piecePositionX][piecePositionY + 2] != MOVING)) checker = true;
+
         if ((grid[piecePositionX + 3][piecePositionY + 1] == MOVING) &&
             (grid[piecePositionX + 1][piecePositionY] != EMPTY) &&
-            (grid[piecePositionX + 1][piecePositionY] != MOVING))
-        {    
-            checker = true;
-        }
+            (grid[piecePositionX + 1][piecePositionY] != MOVING)) checker = true;
+
         if ((grid[piecePositionX + 2][piecePositionY + 3] == MOVING) &&
             (grid[piecePositionX + 3][piecePositionY + 1] != EMPTY) &&
-            (grid[piecePositionX + 3][piecePositionY + 1] != MOVING))
-        {    
-            checker = true;
-        }
+            (grid[piecePositionX + 3][piecePositionY + 1] != MOVING)) checker = true;
+
         if ((grid[piecePositionX][piecePositionY + 2] == MOVING) &&
             (grid[piecePositionX + 2][piecePositionY + 3] != EMPTY) &&
-            (grid[piecePositionX + 2][piecePositionY + 3] != MOVING))
-        {    
-            checker = true;
-        }
-
+            (grid[piecePositionX + 2][piecePositionY + 3] != MOVING)) checker = true;
 
         if ((grid[piecePositionX + 2][piecePositionY] == MOVING) &&
             (grid[piecePositionX][piecePositionY + 1] != EMPTY) &&
-            (grid[piecePositionX][piecePositionY + 1] != MOVING))
-        {    
-            checker = true;
-        }
+            (grid[piecePositionX][piecePositionY + 1] != MOVING)) checker = true;
+
         if ((grid[piecePositionX + 3][piecePositionY + 2] == MOVING) &&
             (grid[piecePositionX + 2][piecePositionY] != EMPTY) &&
-            (grid[piecePositionX + 2][piecePositionY] != MOVING))
-        {    
-            checker = true;
-        }
+            (grid[piecePositionX + 2][piecePositionY] != MOVING)) checker = true;
+
         if ((grid[piecePositionX + 1][piecePositionY + 3] == MOVING) &&
             (grid[piecePositionX + 3][piecePositionY + 2] != EMPTY) &&
-            (grid[piecePositionX + 3][piecePositionY + 2] != MOVING))
-        {    
-            checker = true;
-        }
+            (grid[piecePositionX + 3][piecePositionY + 2] != MOVING)) checker = true;
+
         if ((grid[piecePositionX][piecePositionY + 1] == MOVING) &&
             (grid[piecePositionX + 1][piecePositionY + 3] != EMPTY) &&
-            (grid[piecePositionX + 1][piecePositionY + 3] != MOVING))
-        {    
-            checker = true;
-        }
+            (grid[piecePositionX + 1][piecePositionY + 3] != MOVING)) checker = true;
 
         if ((grid[piecePositionX + 1][piecePositionY + 1] == MOVING) &&
             (grid[piecePositionX + 1][piecePositionY + 2] != EMPTY) &&
-            (grid[piecePositionX + 1][piecePositionY + 2] != MOVING))
-        {    
-            checker = true;
-        }
-        
+            (grid[piecePositionX + 1][piecePositionY + 2] != MOVING)) checker = true;
+
         if ((grid[piecePositionX + 2][piecePositionY + 1] == MOVING) &&
             (grid[piecePositionX + 1][piecePositionY + 1] != EMPTY) &&
-            (grid[piecePositionX + 1][piecePositionY + 1] != MOVING))
-        {    
-            checker = true;
-        }
+            (grid[piecePositionX + 1][piecePositionY + 1] != MOVING)) checker = true;
+
         if ((grid[piecePositionX + 2][piecePositionY + 2] == MOVING) &&
             (grid[piecePositionX + 2][piecePositionY + 1] != EMPTY) &&
-            (grid[piecePositionX + 2][piecePositionY + 1] != MOVING))
-        {    
-            checker = true;
-        }
+            (grid[piecePositionX + 2][piecePositionY + 1] != MOVING)) checker = true;
+
         if ((grid[piecePositionX + 1][piecePositionY + 2] == MOVING) &&
             (grid[piecePositionX + 2][piecePositionY + 2] != EMPTY) &&
-            (grid[piecePositionX + 2][piecePositionY + 2] != MOVING))
-        {    
-            checker = true;
-        }
+            (grid[piecePositionX + 2][piecePositionY + 2] != MOVING)) checker = true;
 
         if (!checker)
         {
@@ -755,6 +708,7 @@ static bool ResolveTurnMovement()
                 }
             }
         }
+        
         return true;
     }
 
@@ -772,9 +726,9 @@ static void CheckDetection(bool *detection)
     }
 }
 
-static void CheckCompletition(bool *lineToDelete)
+static void CheckCompletion(bool *lineToDelete)
 {
-    int calculator;
+    int calculator = 0;
 
     for (int j = GRID_VERTICAL_SIZE - 2; j >= 0; j--)
     {
@@ -806,7 +760,7 @@ static void CheckCompletition(bool *lineToDelete)
 
 static void DeleteCompleteLines()
 {
-    // erase the completed line
+    // Erase the completed line
     for (int j = GRID_VERTICAL_SIZE - 2; j >= 0; j--)
     {
         while (grid[1][j] == FADING)
@@ -815,6 +769,7 @@ static void DeleteCompleteLines()
             {
                 grid[i][j] = EMPTY;
             }
+            
             for (int j2 = j-1; j2 >= 0; j2--)
             {
                 for (int i2 = 1; i2 < GRID_HORIZONTAL_SIZE - 1; i2++)

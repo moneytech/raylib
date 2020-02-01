@@ -11,18 +11,18 @@
 
 #include "raylib.h"
 
-int main()
+int main(void)
 {
     // Initialization
     //--------------------------------------------------------------------------------------
-    int screenWidth = 800;
-    int screenHeight = 450;
+    const int screenWidth = 800;
+    const int screenHeight = 450;
 
     InitWindow(screenWidth, screenHeight, "raylib [core] example - keyboard input");
 
     Vector2 ballPosition = { (float)screenWidth/2, (float)screenHeight/2 };
 
-    SetTargetFPS(60);       // Set target frames-per-second
+    SetTargetFPS(60);               // Set our game to run at 60 frames-per-second
     //--------------------------------------------------------------------------------------
 
     // Main game loop
@@ -30,10 +30,10 @@ int main()
     {
         // Update
         //----------------------------------------------------------------------------------
-        if (IsKeyDown(KEY_RIGHT)) ballPosition.x += 0.8f;
-        if (IsKeyDown(KEY_LEFT)) ballPosition.x -= 0.8f;
-        if (IsKeyDown(KEY_UP)) ballPosition.y -= 0.8f;
-        if (IsKeyDown(KEY_DOWN)) ballPosition.y += 0.8f;
+        if (IsKeyDown(KEY_RIGHT)) ballPosition.x += 2.0f;
+        if (IsKeyDown(KEY_LEFT)) ballPosition.x -= 2.0f;
+        if (IsKeyDown(KEY_UP)) ballPosition.y -= 2.0f;
+        if (IsKeyDown(KEY_DOWN)) ballPosition.y += 2.0f;
         //----------------------------------------------------------------------------------
 
         // Draw

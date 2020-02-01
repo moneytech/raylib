@@ -2,7 +2,7 @@
 *
 *   raylib [models] example - Heightmap loading and drawing
 *
-*   This example has been created using raylib 1.3 (www.raylib.com)
+*   This example has been created using raylib 1.8 (www.raylib.com)
 *   raylib is licensed under an unmodified zlib/libpng license (View raylib.h for details)
 *
 *   Copyright (c) 2015 Ramon Santamaria (@raysan5)
@@ -11,26 +11,29 @@
 
 #include "raylib.h"
 
-int main()
+int main(void)
 {
     // Initialization
     //--------------------------------------------------------------------------------------
-    int screenWidth = 800;
-    int screenHeight = 450;
+    const int screenWidth = 800;
+    const int screenHeight = 450;
 
     InitWindow(screenWidth, screenHeight, "raylib [models] example - heightmap loading and drawing");
 
     // Define our custom camera to look into our 3d world
-    Camera camera = {{ 18.0f, 16.0f, 18.0f }, { 0.0f, 0.0f, 0.0f }, { 0.0f, 1.0f, 0.0f }, 45.0f };
+    Camera camera = { { 18.0f, 18.0f, 18.0f }, { 0.0f, 0.0f, 0.0f }, { 0.0f, 1.0f, 0.0f }, 45.0f, 0 };
 
-    Image image = LoadImage("resources/heightmap.png");         // Load heightmap image (RAM)
-    Texture2D texture = LoadTextureFromImage(image);            // Convert image to texture (VRAM)
-    Model map = LoadHeightmap(image, (Vector3){ 16, 8, 16 });   // Load heightmap model with defined size
-    map.material.texDiffuse = texture;                          // Set map diffuse texture
-    Vector3 mapPosition = { -8.0f, 0.0f, -8.0f };               // Set model position (depends on model scaling!)
+    Image image = LoadImage("resources/heightmap.png");             // Load heightmap image (RAM)
+    Texture2D texture = LoadTextureFromImage(image);                // Convert image to texture (VRAM)
+
+    Mesh mesh = GenMeshHeightmap(image, (Vector3){ 16, 8, 16 });    // Generate heightmap mesh (RAM and VRAM)
+    Model model = LoadModelFromMesh(mesh);                          // Load model from generated mesh
+
+    model.materials[0].maps[MAP_DIFFUSE].texture = texture;         // Set map diffuse texture
+    Vector3 mapPosition = { -8.0f, 0.0f, -8.0f };                   // Define model position
 
     UnloadImage(image);                     // Unload heightmap image from RAM, already uploaded to VRAM
-    
+
     SetCameraMode(camera, CAMERA_ORBITAL);  // Set an orbital camera mode
 
     SetTargetFPS(60);                       // Set our game to run at 60 frames-per-second
@@ -50,15 +53,14 @@ int main()
 
             ClearBackground(RAYWHITE);
 
-            Begin3dMode(camera);
+            BeginMode3D(camera);
 
-                // NOTE: Model is scaled to 1/4 of its original size (128x128 units)
-                DrawModel(map, mapPosition, 1.0f, RED);
+                DrawModel(model, mapPosition, 1.0f, RED);
 
                 DrawGrid(20, 1.0f);
 
-            End3dMode();
-            
+            EndMode3D();
+
             DrawTexture(texture, screenWidth - texture.width - 20, 20, WHITE);
             DrawRectangleLines(screenWidth - texture.width - 20, 20, texture.width, texture.height, GREEN);
 
@@ -71,7 +73,7 @@ int main()
     // De-Initialization
     //--------------------------------------------------------------------------------------
     UnloadTexture(texture);     // Unload texture
-    UnloadModel(map);           // Unload model
+    UnloadModel(model);         // Unload model
 
     CloseWindow();              // Close window and OpenGL context
     //--------------------------------------------------------------------------------------

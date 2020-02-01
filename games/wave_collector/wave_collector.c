@@ -1,6 +1,6 @@
 /*******************************************************************************************
 *
-*   GLOBAL GAME JAM 2017 - WAVE COLLECTOR
+*   WAVE COLLECTOR [GLOBAL GAME JAM 2017]
 *
 *   The ultimate wave particles collector is here!
 *   You must follow the wave and collect all the particles 
@@ -18,6 +18,9 @@
 #include "screens/screens.h"    // NOTE: Defines global variable: currentScreen
 
 #include <stdlib.h>
+
+#include <stdio.h>              // Required for: printf()
+#include <string.h>             // Required for: strcpy()
 
 #if defined(PLATFORM_WEB)
     #include <emscripten/emscripten.h>
@@ -55,29 +58,39 @@ static void UpdateDrawFrame(void);          // Update and Draw one frame
 //----------------------------------------------------------------------------------
 int main(int argc, char *argv[])
 {
-	// Initialization
-	//---------------------------------------------------------
-    /*
-#if !defined(PLATFORM_WEB)
-    // TODO: Add support for dropped files on the exe
-    sampleFilename = (char *)malloc(256);
+    // Initialization
+    //---------------------------------------------------------
+#if defined(PLATFORM_DESKTOP)
+    // TODO: Support for dropped files on the exe
+    
+    // Support command line argument for custom music file
     if (argc > 1)
     {
+        // Just supporting an input argument parameter!!! o__O
+        
         if ((IsFileExtension(argv[1], ".ogg")) ||
             (IsFileExtension(argv[1], ".wav")))
         {
+            if (sampleFilename != NULL) free(sampleFilename);
+            
+            sampleFilename = (char *)malloc(256);
             strcpy(sampleFilename, argv[1]);
+            
+            printf("Custom audio file: %s", sampleFilename);
         }
     }
 #endif
-    */
+
+#ifndef PLATFORM_ANDROID
     SetConfigFlags(FLAG_MSAA_4X_HINT);
-    InitWindow(screenWidth, screenHeight, "GGJ17 - WAVE COLLECTOR");
+#endif
+    // Note windowTitle is unused on Android
+    InitWindow(screenWidth, screenHeight, "WAVE COLLECTOR [GGJ17]");
 
     // Global data loading (assets that must be available in all screens, i.e. fonts)
     InitAudioDevice();
 
-    font = LoadSpriteFont("resources/font.fnt");
+    font = LoadFont("resources/font.fnt");
     music = LoadMusicStream("resources/audio/wave.ogg");
     
     SetMusicVolume(music, 1.0f);
@@ -104,8 +117,6 @@ int main(int argc, char *argv[])
 
     // De-Initialization
     //--------------------------------------------------------------------------------------
-    StopMusicStream(music);
-        
     switch (currentScreen)
     {
         case LOGO: UnloadLogoScreen(); break;
@@ -116,14 +127,14 @@ int main(int argc, char *argv[])
     }
     
     // Unload all global loaded data (i.e. fonts) here!
-    UnloadSpriteFont(font);
+    UnloadFont(font);
     UnloadMusicStream(music);
 
     CloseAudioDevice();     // Close audio context
     
     CloseWindow();          // Close window and OpenGL context
     //--------------------------------------------------------------------------------------
-	
+
     return 0;
 }
 
@@ -251,7 +262,7 @@ static void UpdateDrawFrame(void)
 
             } break;
             case GAMEPLAY:
-            { 
+            {
                 UpdateGameplayScreen();
                 
                 if (FinishGameplayScreen() == 1) TransitionToScreen(ENDING);
@@ -288,7 +299,7 @@ static void UpdateDrawFrame(void)
             case ENDING: DrawEndingScreen(); break;
             default: break;
         }
-	
+    
         // Draw full screen rectangle in front of everything
         if (onTransition) DrawTransition();
     
